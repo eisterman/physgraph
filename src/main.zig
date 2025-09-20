@@ -83,17 +83,17 @@ pub fn main() !void {
         const y = rng.random().float(f32) * 20.0 - 10;
         nodes[i] = graph.Node{ .pos = rl.Vector2{ .x = x, .y = y }, .vel = rl.Vector2{ .x = 0, .y = 0 } };
     }
-    // for (0..20) |i| {
-    //     for ((i + 1)..20) |j| {
-    //         edges[20 * i + j] = graph.Edge{ .n1 = i, .n2 = j };
-    //     }
-    // }
-    for (0..60) |i| {
-        const n1 = rng.random().uintAtMost(usize, 19);
-        const n2 = rng.random().uintAtMost(usize, 19);
-        if (n1 == n2) continue;
-        edges[i] = graph.Edge{ .n1 = n1, .n2 = n2 };
+    for (0..20) |i| {
+        for ((i + 1)..20) |j| {
+            edges[20 * i + j] = graph.Edge{ .n1 = i, .n2 = j };
+        }
     }
+    // for (0..60) |i| {
+    //     const n1 = rng.random().uintAtMost(usize, 19);
+    //     const n2 = rng.random().uintAtMost(usize, 19);
+    //     if (n1 == n2) continue;
+    //     edges[i] = graph.Edge{ .n1 = n1, .n2 = n2 };
+    // }
     const k: f32 = 10.0;
     const r0: f32 = 10.0;
     const zeta: f32 = 0.004; // damping
@@ -101,10 +101,38 @@ pub fn main() !void {
     const m: f32 = 1.0;
     _ = eps;
 
+    const nodeRad: f32 = 0.4;
+
+    var movingNode: ?usize = null;
+    var alreadyDown: bool = false;
+
     // Main game loop
     while (!rl.windowShouldClose()) { // Detect window close button or ESC key
         // Update
         //----------------------------------------------------------------------------------
+        // Move nodes
+        const mouse = rl.getScreenToWorld2D(rl.getMousePosition(), camera);
+        if (!alreadyDown and rl.isMouseButtonDown(.left)) {
+            for (&nodes, 0..) |*node, i| {
+                const n = &(node.* orelse continue);
+                if (rl.checkCollisionPointCircle(mouse, n.pos, nodeRad)) {
+                    if (n.pinned == true) break;
+                    n.pinned = true;
+                    n.vel = .{ .x = 0, .y = 0 };
+                    movingNode = i;
+                    break;
+                }
+            }
+            alreadyDown = true;
+        } else if (alreadyDown and movingNode != null) {
+            nodes[movingNode.?].?.pos = mouse;
+        }
+        if (rl.isMouseButtonUp(.left)) {
+            if (movingNode) |n| nodes[n].?.pinned = false;
+            movingNode = null;
+            alreadyDown = false;
+        }
+        // Simulation
         const dt = rl.getFrameTime();
         var forces = [_]rl.Vector2{.{ .x = 0, .y = 0 }} ** 20;
         for (edges) |edge| {
@@ -115,8 +143,8 @@ pub fn main() !void {
             const r = n1.*.pos.subtract(n2.*.pos);
             const dr = r.length() - r0;
             const f_1 = r.normalize().scale(-k * dr); // F = -k(r1-r2)
-            forces[e.n1] = forces[e.n1].add(f_1);
-            forces[e.n2] = forces[e.n2].add(f_1.negate());
+            if (!n1.pinned) forces[e.n1] = forces[e.n1].add(f_1);
+            if (!n2.pinned) forces[e.n2] = forces[e.n2].add(f_1.negate());
         }
         // Apply Force, Damping, dv = xdt
         for (0..20) |i| {
@@ -148,7 +176,7 @@ pub fn main() !void {
 
             for (nodes) |node| {
                 const n = node orelse continue;
-                rl.drawCircleV(n.pos, 0.4, .red);
+                rl.drawCircleV(n.pos, nodeRad, .red);
             }
         }
 

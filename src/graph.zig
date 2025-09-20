@@ -3,6 +3,7 @@ const rl = @import("raylib");
 pub const Node = struct {
     pos: rl.Vector2,
     vel: rl.Vector2,
+    pinned: bool = false,
 };
 
 pub const Edge = struct {
