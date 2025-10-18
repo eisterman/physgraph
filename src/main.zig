@@ -83,23 +83,26 @@ pub fn main() !void {
         const y = rng.random().float(f32) * 20.0 - 10;
         nodes[i] = graph.Node{ .pos = rl.Vector2{ .x = x, .y = y }, .vel = rl.Vector2{ .x = 0, .y = 0 } };
     }
-    for (0..20) |i| {
-        for ((i + 1)..20) |j| {
-            edges[20 * i + j] = graph.Edge{ .n1 = i, .n2 = j };
-        }
-    }
-    // for (0..60) |i| {
-    //     const n1 = rng.random().uintAtMost(usize, 19);
-    //     const n2 = rng.random().uintAtMost(usize, 19);
-    //     if (n1 == n2) continue;
-    //     edges[i] = graph.Edge{ .n1 = n1, .n2 = n2 };
+    // for (0..20) |i| {
+    //     for ((i + 1)..20) |j| {
+    //         edges[20 * i + j] = graph.Edge{ .n1 = i, .n2 = j };
+    //     }
     // }
+    for (0..60) |i| {
+        const n1 = rng.random().uintAtMost(usize, 19);
+        const n2 = rng.random().uintAtMost(usize, 19);
+        if (n1 == n2) continue;
+        edges[i] = graph.Edge{ .n1 = n1, .n2 = n2 };
+    }
     const k: f32 = 10.0;
     const r0: f32 = 10.0;
     const zeta: f32 = 0.004; // damping
     const eps: f32 = 0.001;
     const m: f32 = 1.0;
     _ = eps;
+
+    const k_2: f32 = 5.0;
+    const r0_2: f32 = 15.0;
 
     const nodeRad: f32 = 0.4;
 
@@ -135,6 +138,19 @@ pub fn main() !void {
         // Simulation
         const dt = rl.getFrameTime();
         var forces = [_]rl.Vector2{.{ .x = 0, .y = 0 }} ** 20;
+        // Node elastic force
+        for (0..20) |i| {
+            for (i + 1..20) |j| {
+                const n1 = (nodes[i] orelse continue);
+                const n2 = (nodes[j] orelse continue);
+                const r = n1.pos.subtract(n2.pos);
+                const dr = r.length() - r0_2;
+                const f_1 = r.normalize().scale(-k_2 * dr);
+                if (!n1.pinned) forces[i] = forces[i].add(f_1);
+                if (!n2.pinned) forces[j] = forces[j].add(f_1.negate());
+            }
+        }
+        // Edge elastic force
         for (edges) |edge| {
             const e = edge orelse continue;
             const n1 = &(nodes[e.n1] orelse continue);
