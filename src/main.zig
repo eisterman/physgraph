@@ -34,7 +34,7 @@ pub fn main() !void {
     var nodes = [_]?graph.Node{null} ** 1024;
     var edges = [_]?graph.Edge{null} ** 1024;
 
-    var rng = std.Random.DefaultPrng.init(152);
+    var rng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp())); // 152
 
     for (0..20) |i| {
         const x = rng.random().float(f32) * 20.0 - 10;
@@ -54,13 +54,13 @@ pub fn main() !void {
     }
     const k: f32 = 10.0;
     const r0: f32 = 10.0;
-    const zeta: f32 = 0.004; // damping
+    const zeta: f32 = 0.04; // damping
     const eps: f32 = 0.001;
     const m: f32 = 1.0;
     _ = eps;
 
     const k_2: f32 = 5.0;
-    const r0_2: f32 = 15.0;
+    const r0_2: f32 = 20.0;
 
     const nodeRad: f32 = 0.4;
 
@@ -146,11 +146,20 @@ pub fn main() !void {
                 const n2 = nodes[e.n2] orelse continue;
 
                 rl.drawLineEx(n1.pos, n2.pos, 0.1, .black);
+                // Draw arrow
+                const arrowLength: f32 = 0.7;
+                const arrowBase: f32 = arrowLength / 3;
+                const norm_director = n1.pos.subtract(n2.pos).normalize();
+                const v1 = n2.pos.add(norm_director.scale(nodeRad));
+                const vcenter = v1.add(norm_director.scale(arrowLength));
+                const v2 = vcenter.add(norm_director.rotate(std.math.pi / 2.0).scale(arrowBase));
+                const v3 = vcenter.add(norm_director.rotate(-std.math.pi / 2.0).scale(arrowBase));
+                rl.drawTriangle(v1, v2, v3, .black);
             }
 
             for (nodes) |node| {
                 const n = node orelse continue;
-                rl.drawCircleV(n.pos, nodeRad, .red);
+                rl.drawCircleV(n.pos, nodeRad, if (n.pinned) .blue else .red);
             }
         }
 
